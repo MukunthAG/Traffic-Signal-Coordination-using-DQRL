@@ -64,22 +64,27 @@ class Agent():
         self.strategy = strategy
         self.num_actions = num_actions
         self.device = device
+        self.epsilon = None
     
     def select_action(self, state, policy_net):
-        epsilon = self.strategy.get_epsilon(self.experience_step)
+        self.epsilon = self.strategy.get_epsilon(self.experience_step)
         self.experience_step += 1
-        if epsilon > random.random():
+        if self.epsilon > random.random():
             rand_action = random.randrange(self.num_actions)
             return torch.tensor([rand_action]).to(self.device) # 1d tensor
         else:
             with torch.no_grad():
                 return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device) # 1d tensor
     
+    @property
+    def exploration_rate(self):
+        return self.epsilon
+    
     def get_qvalues(self, policy_net, states, actions):
         return policy_net(states).gather(dim = 1, index = actions.unsqueeze(-1))
     
     def get_maxqs_for_ns(self, target_net, next_states):
-        return target_net(next_states).max(0)[1].detach()
+        return target_net(next_states).max(1)[0].detach()
 
     def get_bellman_targets(self, rewards, next_qvalues):
         b_targets = rewards + GAMMA*next_qvalues
@@ -169,7 +174,7 @@ class SumoManager():
             sys.exit("please declare environment variable 'SUMO_HOME'")
 
     def start(self):
-        tr.start(self.sumocmd)
+        tr.start(self.sumocmd, label="master")
         self.state = self.parse_state_info()
 
     def close(self):
@@ -185,7 +190,8 @@ class SumoManager():
     def step(self):
         self.done = False if tr.simulation.getMinExpectedNumber() > 0 else True
         tr.simulationStep()
-        time.sleep(0.02)
+        if GUI_ACTIVE:
+            time.sleep(0.02)
         if not self.done:
             self.state = self.parse_state_info()
         else:
@@ -208,15 +214,12 @@ class SumoManager():
         self.set_tl_state()
         self.get_state(elapsed_state = True)
         reward = self.compute_reward()
-        return torch.tensor([reward])
+        return torch.tensor([reward], device = self.device)
 
     def compute_reward(self):
         p = self.state[:self.tms]
-        print("p", p)
         wt = self.state[self.tms:]
-        print("wt", wt)
         wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
-        print("wt_norm", wt)
         return -1*(torch.abs(torch.sum(p)) + torch.sum(wt))
         
     def parse_state_info(self):
@@ -232,16 +235,21 @@ class SumoManager():
 
 class PerfomanceMeter():
     def __init__(self):
-        pass 
+        self.open = False
 
-    def plot_returns(self, values, period):
-        plt.figure()
+    def plot_returns(self, returns, losses, period):
+        if not self.open:
+            plt.figure(1)
+            self.open = True
         plt.clf()
-        plt.title(f"{str(period)} period Moving Average of Episodic Returns")
-        plt.ylabel("Return")
+        plt.title(f"{str(period)} period Moving Average of Episodic Values")
+        plt.ylabel("ER and EML")
         plt.xlabel("Episode")
-        plt.plot(values)
-        plt.plot(self.get_moving_avgs(values, period))
+        plt.plot(returns, "-b", label="Episodic Return (ER)")
+        plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
+        plt.plot(losses, "-r", label="Episodic Mean Loss (EML)")
+        plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of EML")
+        plt.legend(loc="upper left")
         plt.pause(0.001)
     
     def get_moving_avgs(self, values, period):
@@ -249,10 +257,10 @@ class PerfomanceMeter():
         if len(values) >= period:
             mov_avgs = values.unfold(0, period, 1).mean(1)
             mov_avgs = torch.cat((torch.zeros(period - 1), mov_avgs))
-            return mov_avgs.numpy()
+            return mov_avgs.detach().numpy()
         else:
             mov_avgs = torch.zeros(len(values))
-            return mov_avgs.numpy()
+            return mov_avgs.detach().numpy()
 
 if __name__ == "__main__":
 
@@ -269,31 +277,44 @@ if __name__ == "__main__":
     optimizer = optim.Adam(params=policy_net.parameters(), lr=ALPHA)
 
     episode_returns = []
+    episodic_losses = []
 
     for episode in range(NUM_EPISODES):
+        print("EPISODE: ", episode)
         sm.reset()
         state = sm.get_state()
         return_val = 0
+        loss_val = 0
         for agent_step in count():
             action = agent.select_action(state, policy_net)
             reward = sm.take_action_get_reward(action)
-            return_val += (GAMMA**(agent_step))*reward
+            # print("agent_step: ", agent_step)
+            # print("epsilon: ", agent.exploration_rate)
+            # print("action: ", action.item())
+            # print("reward: ", reward.item())
+            return_val += (GAMMA**(agent_step))*(reward.item())
             next_state = sm.get_state()
             memory.push(Exp(state, action, reward, next_state))
             state = next_state
             if memory.is_sampleable():
+                # print("Sampling......")
                 exps = memory.sample()
                 states, actions, rewards, next_states = memory.unzip_exps(exps)
                 cur_qvalues = agent.get_qvalues(policy_net, states, actions)
                 next_qvalues = agent.get_maxqs_for_ns(target_net, next_states)
                 bellman_targets = agent.get_bellman_targets(rewards, next_qvalues)
                 loss = F.mse_loss(cur_qvalues, bellman_targets)
+                loss_val += loss.item()
+                # print("loss: ", loss.item())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
             if sm.done:
+                # print("RETURN for EPISODE {episode}:", return_val)'
+                mean_loss = loss_val/agent_step
                 episode_returns.append(return_val)
-                pm.plot_returns(episode_returns)
+                episodic_losses.append(mean_loss)
+                pm.plot_returns(episode_returns, episodic_losses, 50)
                 break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())

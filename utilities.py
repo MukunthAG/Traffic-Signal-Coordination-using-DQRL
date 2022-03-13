@@ -29,11 +29,11 @@ FC2 = 18
 OUTPUTS = 8
 GAMMA = 0.99
 ALPHA = 0.1
-TARGET_UPDATE = 5
+TARGET_UPDATE = 10
 
 #MEMORY_MANAGER
 
-NUM_EPISODES = 500
+NUM_EPISODES = 100
 CAPACITY = 10000
 BATCH_SIZE = 100
 
@@ -46,12 +46,17 @@ MAXWT = 200
 
 EPS_I = 1
 EPS_E = 0.01
-EPS_DECAY = 0.001
+EPS_DECAY = 0.0005
 ACTION_DELAY = 10 
 
 #SUMOMANAGEMENT
 
-SUMOCMD = ["sumo-gui", "-c", "fixedtime.sumocfg"]
+GUI_ACTIVE = False
+SUMOCMD = ["sumo-gui" if GUI_ACTIVE else "sumo",
+            "-c", "fixedtime.sumocfg",
+            "--no-step-log", "true",
+            "-W", "true", 
+            "--duration-log.disable"]
 CONTROLLED_SIGNAL = "TJ2"
 NUM_TMS = 12
 NUM_OF_ACTIONS = 8
