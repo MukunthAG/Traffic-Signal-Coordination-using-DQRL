@@ -71,10 +71,10 @@ class Agent():
         self.experience_step += 1
         if self.epsilon > random.random():
             rand_action = random.randrange(self.num_actions)
-            return torch.tensor([rand_action]).to(self.device) # 1d tensor
+            return torch.tensor([rand_action], device= self.device)
         else:
             with torch.no_grad():
-                return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device) # 1d tensor
+                return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device)
     
     @property
     def exploration_rate(self):
@@ -291,7 +291,7 @@ if __name__ == "__main__":
             # print("agent_step: ", agent_step)
             # print("epsilon: ", agent.exploration_rate)
             # print("action: ", action.item())
-            # print("reward: ", reward.item())
+            print("reward: ", reward.item())
             return_val += (GAMMA**(agent_step))*(reward.item())
             next_state = sm.get_state()
             memory.push(Exp(state, action, reward, next_state))
@@ -305,12 +305,12 @@ if __name__ == "__main__":
                 bellman_targets = agent.get_bellman_targets(rewards, next_qvalues)
                 loss = F.mse_loss(cur_qvalues, bellman_targets)
                 loss_val += loss.item()
-                # print("loss: ", loss.item())
+                print("loss: ", loss.item())
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
             if sm.done:
-                # print("RETURN for EPISODE {episode}:", return_val)'
+                print("RETURN for EPISODE {episode}:", return_val)
                 mean_loss = loss_val/agent_step
                 episode_returns.append(return_val)
                 episodic_losses.append(mean_loss)
