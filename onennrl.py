@@ -66,16 +66,41 @@ class Agent():
         self.device = device
         self.epsilon = None
     
-    def select_action(self, state, policy_net):
-        self.epsilon = self.strategy.get_epsilon(self.experience_step)
-        self.experience_step += 1
-        if self.epsilon > random.random():
-            rand_action = random.randrange(self.num_actions)
-            return torch.tensor([rand_action], device= self.device)
+    def select_action(self, state, policy_net, greedy_biased = False):
+        if not greedy_biased:
+            self.epsilon = self.strategy.get_epsilon(self.experience_step)
+            self.experience_step += 1
+            if self.epsilon > random.random():
+                rand_action = random.randrange(self.num_actions)
+                return torch.tensor([rand_action], device= self.device)
+            else:
+                with torch.no_grad():
+                    return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device)
         else:
-            with torch.no_grad():
-                return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device)
+            maxpressure = float("-Inf")
+            argmaxp = None
+            for p in PHASE_INFO:
+                pressure = self.greedy_get_pressure_for_phase(p, CONTROLLED_SIGNAL)
+                if pressure > maxpressure:
+                    maxpressure = pressure
+                    argmaxp = p
+            # print(argmaxp)
+            return torch.tensor([int(PHASE_INFO[argmaxp])], device= self.device)
     
+    def greedy_get_pressure_for_phase(self, phase, Tl):
+        phase_list = list(phase.strip(" "))
+        slane_list = tr.trafficlight.getControlledLanes(Tl)
+        total_pressure = 0
+        for i in range(len(phase_list)):
+            if i % 3 != 0 and phase_list[i] == "G":
+                slane = slane_list[i]
+                elane = tr.lane.getLinks(slane)[0][0]
+                nslane = tr.lane.getLastStepVehicleNumber(slane)
+                nelane = tr.lane.getLastStepVehicleNumber(elane)
+                pressure = nslane - nelane
+                total_pressure += pressure
+        return total_pressure
+
     @property
     def exploration_rate(self):
         return self.epsilon
@@ -291,7 +316,7 @@ if __name__ == "__main__":
         return_val = 0
         loss_val = 0
         for agent_step in count():
-            action = agent.select_action(state, policy_net)
+            action = agent.select_action(state, policy_net, greedy_biased = False)
             reward = sm.take_action_get_reward(action)
             # print("agent_step: ", agent_step)
             # print("epsilon: ", agent.exploration_rate)
@@ -325,11 +350,11 @@ if __name__ == "__main__":
                 print(f"LOSS for EPISODE {episode}:", mean_loss)
                 episode_returns.append(return_val)
                 episodic_losses.append(agent_step)
+                pm.plot_returns(episode_returns, episodic_losses, 50)
                 break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
     t = time.localtime()
     print(time.strftime("%H:%M:%S", t))
-    pm.plot_returns(episode_returns, episodic_losses, 50)
-    pm.save("just_pressureDescLayers")
+    pm.save("greedy_perf")
     sm.close()
