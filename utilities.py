@@ -23,19 +23,19 @@ GPU = torch.device("cuda")
 
 #DQN_ARCHITECTURE      
 
-INPUTS = 24
-FC1 = 18
-FC2 = 18
+INPUTS = 12
+FC1 = 10
+FC2 = 10
 OUTPUTS = 8
-GAMMA = 0.99
+GAMMA = 0.95
 ALPHA = 0.01
-TARGET_UPDATE = 10
+TARGET_UPDATE = 8
 
 #MEMORY_MANAGER
 
-NUM_EPISODES = 100
-CAPACITY = 10000
-BATCH_SIZE = 50
+NUM_EPISODES = 120
+CAPACITY = 1200
+BATCH_SIZE = 200
 
 #REWARD_PARAMS
 
@@ -45,13 +45,14 @@ MAXWT = 200
 #ACTION_STRATEGY
 
 EPS_I = 1
-EPS_E = 0.01
-EPS_DECAY = 0.0005
+EPS_E = 0.001
+EPS_DECAY = 0.01
 ACTION_DELAY = 10 
 
 #SUMOMANAGEMENT
 
 GUI_ACTIVE = False
+TIME_ELAPSE = 0.005
 SUMOCMD = ["sumo-gui" if GUI_ACTIVE else "sumo",
             "-c", "fixedtime.sumocfg",
             "--no-step-log", "true",

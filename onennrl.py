@@ -191,7 +191,7 @@ class SumoManager():
         self.done = False if tr.simulation.getMinExpectedNumber() > 0 else True
         tr.simulationStep()
         if GUI_ACTIVE:
-            time.sleep(0.02)
+            time.sleep(TIME_ELAPSE)
         if not self.done:
             self.state = self.parse_state_info()
         else:
@@ -218,19 +218,19 @@ class SumoManager():
 
     def compute_reward(self):
         p = self.state[:self.tms]
-        wt = self.state[self.tms:]
-        wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
-        return -1*(torch.abs(torch.sum(p)) + torch.sum(wt))
+        # wt = self.state[self.tms:]
+        # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
+        return -1*(torch.abs(torch.sum(p)))
         
     def parse_state_info(self):
         state_info = SumoTrafficState.get()
         p = state_info[self.TL]["pressures"]  
-        wt = state_info[self.TL]["waiting_times"]  
+        # wt = state_info[self.TL]["waiting_times"]  
         pNwt_cat = []
         for i in p:
             pNwt_cat.append(i[1])
-        for i in wt:
-            pNwt_cat.append(i[1])
+        # for i in wt:
+        #     pNwt_cat.append(i[1])
         return torch.tensor(pNwt_cat, device = self.device).float()
 
 class PerfomanceMeter():
@@ -247,8 +247,8 @@ class PerfomanceMeter():
         plt.xlabel("Episode")
         plt.plot(returns, "-b", label="Episodic Return (ER)")
         plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
-        plt.plot(losses, "-r", label="Episodic Mean Loss (EML)")
-        plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of EML")
+        plt.plot(losses, "-r", label="Episodic Duration (ED)")
+        plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of ED")
         plt.legend(loc="upper left")
         plt.pause(0.001)
     
@@ -261,6 +261,9 @@ class PerfomanceMeter():
         else:
             mov_avgs = torch.zeros(len(values))
             return mov_avgs.detach().numpy()
+    
+    def save(self, msg):
+        plt.savefig(msg + ".png")
 
 if __name__ == "__main__":
 
@@ -279,6 +282,8 @@ if __name__ == "__main__":
     episode_returns = []
     episodic_losses = []
 
+    t = time.localtime()
+    print(time.strftime("%H:%M:%S", t))
     for episode in range(NUM_EPISODES):
         print("EPISODE: ", episode)
         sm.reset()
@@ -291,7 +296,7 @@ if __name__ == "__main__":
             # print("agent_step: ", agent_step)
             # print("epsilon: ", agent.exploration_rate)
             # print("action: ", action.item())
-            print("reward: ", reward.item())
+            # print("reward: ", reward.item())
             return_val += (GAMMA**(agent_step))*(reward.item())
             next_state = sm.get_state()
             memory.push(Exp(state, action, reward, next_state))
@@ -301,21 +306,30 @@ if __name__ == "__main__":
                 exps = memory.sample()
                 states, actions, rewards, next_states = memory.unzip_exps(exps)
                 cur_qvalues = agent.get_qvalues(policy_net, states, actions)
+                # print("cur", cur_qvalues)
                 next_qvalues = agent.get_maxqs_for_ns(target_net, next_states)
+                # print("nq", next_qvalues)
                 bellman_targets = agent.get_bellman_targets(rewards, next_qvalues)
-                loss = F.mse_loss(cur_qvalues, bellman_targets)
+                loss = F.smooth_l1_loss(cur_qvalues, bellman_targets)
+                # loss *= -1
                 loss_val += loss.item()
-                print("loss: ", loss.item())
+                # print("loss: ", loss.item())
                 optimizer.zero_grad()
                 loss.backward()
+                # for param in policy_net.parameters():
+                #     param.grad.data.clamp_(-1, 1)
                 optimizer.step()
             if sm.done:
-                print("RETURN for EPISODE {episode}:", return_val)
                 mean_loss = loss_val/agent_step
+                print(f"RETURN for EPISODE {episode}:", return_val)
+                print(f"LOSS for EPISODE {episode}:", mean_loss)
                 episode_returns.append(return_val)
-                episodic_losses.append(mean_loss)
-                pm.plot_returns(episode_returns, episodic_losses, 50)
+                episodic_losses.append(agent_step)
                 break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
+    t = time.localtime()
+    print(time.strftime("%H:%M:%S", t))
+    pm.plot_returns(episode_returns, episodic_losses, 50)
+    pm.save("just_pressureDescLayers")
     sm.close()

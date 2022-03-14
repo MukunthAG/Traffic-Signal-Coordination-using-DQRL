@@ -287,57 +287,57 @@
     </edge>
 
     <tlLogic id="TJ1" type="static" programID="0" offset="0">
-        <phase duration="10" state="GrrGGrGrrGGr"/>
+        <phase duration="12" state="GrrGGrGrrGGr"/>
         <phase duration="02" state="GrrGyyGrrGyy"/>
-        <phase duration="10" state="GrrGrGGrrGrG"/>
+        <phase duration="12" state="GrrGrGGrrGrG"/>
         <phase duration="02" state="GyrGryGyrGry"/>
-        <phase duration="10" state="GGrGrrGGrGrr"/>
+        <phase duration="12" state="GGrGrrGGrGrr"/>
         <phase duration="02" state="GyyGrrGyyGrr"/>
-        <phase duration="10" state="GrGGrrGrGGrr"/>
+        <phase duration="12" state="GrGGrrGrGGrr"/>
         <phase duration="02" state="GryGrrGryGyy"/>
-        <phase duration="10" state="GrrGrrGrrGGG"/>
+        <phase duration="12" state="GrrGrrGrrGGG"/>
         <phase duration="02" state="GrrGyyGrrGyy"/>
-        <phase duration="10" state="GrrGGGGrrGrr"/>
+        <phase duration="12" state="GrrGGGGrrGrr"/>
         <phase duration="02" state="GyyGyyGrrGrr"/>
-        <phase duration="10" state="GGGGrrGrrGrr"/>
+        <phase duration="12" state="GGGGrrGrrGrr"/>
         <phase duration="02" state="GyyGrrGyyGrr"/>
-        <phase duration="10" state="GrrGrrGGGGrr"/>
+        <phase duration="12" state="GrrGrrGGGGrr"/>
         <phase duration="02" state="GrrGryGyyGry"/>
     </tlLogic>
     <tlLogic id="TJ2" type="static" programID="0" offset="0">
-        <phase duration="20" state="GrrGGrGrrGGr"/>
+        <phase duration="12" state="GrrGGrGrrGGr"/>
         <phase duration="02" state="GrrGyyGrrGyy"/>
-        <phase duration="20" state="GrrGrGGrrGrG"/>
+        <phase duration="12" state="GrrGrGGrrGrG"/>
         <phase duration="02" state="GyrGryGyrGry"/>
-        <phase duration="20" state="GGrGrrGGrGrr"/>
+        <phase duration="12" state="GGrGrrGGrGrr"/>
         <phase duration="02" state="GyyGrrGyyGrr"/>
-        <phase duration="20" state="GrGGrrGrGGrr"/>
+        <phase duration="12" state="GrGGrrGrGGrr"/>
         <phase duration="02" state="GryGrrGryGyy"/>
-        <phase duration="20" state="GrrGrrGrrGGG"/>
+        <phase duration="12" state="GrrGrrGrrGGG"/>
         <phase duration="02" state="GrrGyyGrrGyy"/>
-        <phase duration="20" state="GrrGGGGrrGrr"/>
+        <phase duration="12" state="GrrGGGGrrGrr"/>
         <phase duration="02" state="GyyGyyGrrGrr"/>
-        <phase duration="20" state="GGGGrrGrrGrr"/>
+        <phase duration="12" state="GGGGrrGrrGrr"/>
         <phase duration="02" state="GyyGrrGyyGrr"/>
-        <phase duration="20" state="GrrGrrGGGGrr"/>
+        <phase duration="12" state="GrrGrrGGGGrr"/>
         <phase duration="02" state="GrrGryGyyGry"/>
     </tlLogic>
     <tlLogic id="TJ3" type="static" programID="0" offset="0">
-        <phase duration="10" state="GrrGGrGrrGGr"/>
+        <phase duration="12" state="GrrGGrGrrGGr"/>
         <phase duration="02" state="GrrGyyGrrGyy"/>
-        <phase duration="10" state="GrrGrGGrrGrG"/>
+        <phase duration="12" state="GrrGrGGrrGrG"/>
         <phase duration="02" state="GyrGryGyrGry"/>
-        <phase duration="10" state="GGrGrrGGrGrr"/>
+        <phase duration="12" state="GGrGrrGGrGrr"/>
         <phase duration="02" state="GyyGrrGyyGrr"/>
-        <phase duration="10" state="GrGGrrGrGGrr"/>
+        <phase duration="12" state="GrGGrrGrGGrr"/>
         <phase duration="02" state="GryGrrGryGyy"/>
-        <phase duration="10" state="GrrGrrGrrGGG"/>
+        <phase duration="12" state="GrrGrrGrrGGG"/>
         <phase duration="02" state="GrrGyyGrrGyy"/>
-        <phase duration="10" state="GrrGGGGrrGrr"/>
+        <phase duration="12" state="GrrGGGGrrGrr"/>
         <phase duration="02" state="GyyGyyGrrGrr"/>
-        <phase duration="10" state="GGGGrrGrrGrr"/>
+        <phase duration="12" state="GGGGrrGrrGrr"/>
         <phase duration="02" state="GyyGrrGyyGrr"/>
-        <phase duration="10" state="GrrGrrGGGGrr"/>
+        <phase duration="12" state="GrrGrrGGGGrr"/>
         <phase duration="02" state="GrrGryGyyGry"/>
     </tlLogic>
 
