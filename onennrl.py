@@ -242,18 +242,20 @@ class SumoManager():
         return torch.tensor([reward], device = self.device)
 
     def compute_reward(self):
-        p = self.state[:self.tms]
+        n = int(self.TL[-1])
+        p = self.state[(n - 1)*self.tms:n*self.tms]
         # wt = self.state[self.tms:]
         # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
         return -1*(torch.abs(torch.sum(p)))
         
     def parse_state_info(self):
         state_info = SumoTrafficState.get()
-        p = state_info[self.TL]["pressures"]  
-        # wt = state_info[self.TL]["waiting_times"]  
         pNwt_cat = []
-        for i in p:
-            pNwt_cat.append(i[1])
+        for tl in state_info:
+            p = state_info[tl]["pressures"]  
+            # wt = state_info[self.TL]["waiting_times"]  
+            for i in p:
+                pNwt_cat.append(i[1])
         # for i in wt:
         #     pNwt_cat.append(i[1])
         return torch.tensor(pNwt_cat, device = self.device).float()
@@ -261,6 +263,10 @@ class SumoManager():
 class PerfomanceMeter():
     def __init__(self):
         self.open = False
+    
+    def print_time(self):
+        t = time.localtime()
+        print(time.strftime("%H:%M:%S", t))
 
     def plot_returns(self, returns, losses, period):
         if not self.open:
@@ -270,11 +276,12 @@ class PerfomanceMeter():
         plt.title(f"{str(period)} period Moving Average of Episodic Values")
         plt.ylabel("ER and EML")
         plt.xlabel("Episode")
+        plt.axhline(y = -137.75, color = 'r', linestyle = 'dashed', label="Greedy Return")
         plt.plot(returns, "-b", label="Episodic Return (ER)")
         plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
         plt.plot(losses, "-r", label="Episodic Duration (ED)")
         plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of ED")
-        plt.legend(loc="upper left")
+        plt.legend(loc="lower right")
         plt.pause(0.001)
     
     def get_moving_avgs(self, values, period):
@@ -307,8 +314,7 @@ if __name__ == "__main__":
     episode_returns = []
     episodic_losses = []
 
-    t = time.localtime()
-    print(time.strftime("%H:%M:%S", t))
+    pm.print_time()
     for episode in range(NUM_EPISODES):
         print("EPISODE: ", episode)
         sm.reset()
@@ -350,11 +356,13 @@ if __name__ == "__main__":
                 print(f"LOSS for EPISODE {episode}:", mean_loss)
                 episode_returns.append(return_val)
                 episodic_losses.append(agent_step)
-                pm.plot_returns(episode_returns, episodic_losses, 50)
+                if GRAPH_SHOW:
+                    pm.plot_returns(episode_returns, episodic_losses, 50)
                 break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
-    t = time.localtime()
-    print(time.strftime("%H:%M:%S", t))
-    pm.save("greedy_perf")
+    pm.print_time()
+    if not GRAPH_SHOW:
+        pm.plot_returns(episode_returns, episodic_losses, 50)
+    pm.save(GRAPH_NAME)
     sm.close()
