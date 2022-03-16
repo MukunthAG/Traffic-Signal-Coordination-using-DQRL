@@ -6,7 +6,7 @@ if __name__ == "__main__":
     for _ in range(1):
         tr.start(sumoCmd)
         step = 0
-        print(int(tr.simulation.getTime()))
+        print(tr.trafficlight.getIDList())
         while tr.simulation.getMinExpectedNumber() > 0:
             tr.simulationStep()
             # sleep(0.02)
