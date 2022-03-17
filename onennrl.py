@@ -200,11 +200,13 @@ class SumoManager():
         self.device = device
         self.sumocmd = sumocmd
         self.state = None
+        self._step = 0
         self.done = False
         self.TL = active_signal
         self.tms = tms
         self.maxp = maxp
         self.maxwt = maxwt
+        self.action_record = []
         self.setup()
 
     def setup(self):
@@ -227,13 +229,18 @@ class SumoManager():
     def reset(self):
         if not self.done:
             self.start()
+            self._step = 0
+            self.action_record = []
         else:
             self.close()
+            self._step = 0
+            self.action_record = []
             self.start()
 
     def step(self):
         self.done = False if tr.simulation.getMinExpectedNumber() > 0 else True
         tr.simulationStep()
+        self._step += 1
         if GUI_ACTIVE:
             time.sleep(TIME_ELAPSE)
         if not self.done:
@@ -263,10 +270,14 @@ class SumoManager():
 
     def take_joint_action_get_reward(self, joint_action):
         joint_reward = {}
+        tl_record = {}
         for tl in joint_action:
             self.action = str(joint_action[tl].item())
             self.set_tl_state(tl)
-            self.get_state(elapsed_state = True)
+            tl_record[tl] = self.action
+        self.get_state(elapsed_state = True) 
+        self.action_record.append((self._step, tl_record))
+        for tl in joint_action:
             reward = self.compute_reward(tl)
             joint_reward[tl] = torch.tensor([reward], device = self.device)
         return joint_reward
@@ -318,7 +329,7 @@ class PerfomanceMeter():
         values = torch.tensor(values).float()
         if len(values) >= period:
             mov_avgs = values.unfold(0, period, 1).mean(1)
-            mov_avgs = torch.cat((torch.zeros(period - 1), mov_avgs))
+            mov_avgs = torch.cat((torch.zeros(period - 1) + zero_crc, mov_avgs))
             return mov_avgs.detach().numpy()
         else:
             mov_avgs = torch.zeros(len(values)) + zero_crc
@@ -326,6 +337,12 @@ class PerfomanceMeter():
     
     def save(self, msg):
         plt.savefig(msg + ".png")
+
+    def write_record(self, list):
+        list = str(list)
+        file = open(GRAPH_NAME + ".txt", "w")
+        file.write(list)
+        file.close()
 
 if __name__ == "__main__":
 
@@ -350,7 +367,7 @@ if __name__ == "__main__":
 
     episode_returns = []
     episodic_losses = []
-
+    max_return = float("-Inf")
     pm.print_time()
     for episode in range(NUM_EPISODES):
         print("EPISODE: ", episode)
@@ -380,6 +397,9 @@ if __name__ == "__main__":
                     loss.backward()
                     optimizer.step()
             if sm.done: 
+                    if return_val > max_return:
+                        pm.write_record(sm.action_record)
+                        max_return = return_val
                     print(f"RETURN for EPISODE {episode}:", return_val)
                     print(f"LOSS for EPISODE {episode}:", agent_step)
                     episode_returns.append(return_val)
