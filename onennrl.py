@@ -287,7 +287,10 @@ class SumoManager():
         p = self.state[(n - 1)*self.tms:n*self.tms]
         # wt = self.state[self.tms:]
         # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
-        return -1*(abs(sum(p)))
+        if self._step < TRIGGER_WAITING_STEP:
+            return -1*(abs(sum(p)))
+        else:
+            return -1*(abs(sum(p))) - (TRIGGER_WAITING_STEP/10)
         
     def parse_state_info(self):
         state_info = SumoTrafficState.get()
@@ -338,9 +341,9 @@ class PerfomanceMeter():
     def save(self, msg):
         plt.savefig(msg + ".png")
 
-    def write_record(self, list):
+    def write_record(self, name, list):
         list = str(list)
-        file = open(GRAPH_NAME + ".txt", "w")
+        file = open(name + ".txt", "w")
         file.write(list)
         file.close()
 
@@ -368,6 +371,7 @@ if __name__ == "__main__":
     episode_returns = []
     episodic_losses = []
     max_return = float("-Inf")
+    min_loss = float("Inf")
     pm.print_time()
     for episode in range(NUM_EPISODES):
         print("EPISODE: ", episode)
@@ -398,8 +402,11 @@ if __name__ == "__main__":
                     optimizer.step()
             if sm.done: 
                     if return_val > max_return:
-                        pm.write_record(sm.action_record)
+                        pm.write_record(GRAPH_NAME + "_max_return", sm.action_record)
                         max_return = return_val
+                    if agent_step < min_loss:
+                        pm.write_record(GRAPH_NAME + "_min_loss", sm.action_record)
+                        min_return = agent_step
                     print(f"RETURN for EPISODE {episode}:", return_val)
                     print(f"LOSS for EPISODE {episode}:", agent_step)
                     episode_returns.append(return_val)
