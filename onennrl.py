@@ -334,8 +334,10 @@ if __name__ == "__main__":
 
     episode_returns = []
     episodic_losses = []
-
+    max_return = float("-Inf")
+    min_loss = float("Inf")
     pm.print_time()
+
     for episode in range(NUM_EPISODES):
         print("EPISODE: ", episode)
         sm.reset()
@@ -360,17 +362,25 @@ if __name__ == "__main__":
                 loss.backward()
                 optimizer.step()
             if sm.done:
-                print(f"RETURN for EPISODE {episode}:", return_val)
-                print(f"LOSS for EPISODE {episode}:", agent_step)
-                episode_returns.append(return_val)
-                episodic_losses.append(agent_step)
-                if GRAPH_SHOW:
-                    pm.plot_returns(episode_returns, episodic_losses, MAV_PERIOD)
-                break 
+                # if return_val > max_return:
+                #     pm.write_record(GRAPH_NAME + "_max_return", sm.action_record)
+                #     max_return = return_val
+                # if agent_step < min_loss:
+                #     pm.write_record(GRAPH_NAME + "_min_loss", sm.action_record)
+                #     min_loss = agent_step
+                    print(f"RETURN for EPISODE {episode}:", return_val)
+                    print(f"LOSS for EPISODE {episode}:", agent_step)
+                    episode_returns.append(return_val)
+                    episodic_losses.append(agent_step)
+                    if GRAPH_SHOW:
+                        pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+                    break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
     pm.print_time()
     if not GRAPH_SHOW:
-        pm.plot_returns(episode_returns, episodic_losses, MAV_PERIOD)
+        pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+    pm.write_record(GRAPH_NAME + "_returns", str(episode_returns))
+    pm.write_record(GRAPH_NAME + "_losses", str(episodic_losses))
     pm.save(GRAPH_NAME)
     sm.close()
