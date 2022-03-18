@@ -6,11 +6,13 @@ class DQN(nn.Module):
 
         self.fc1 = nn.Linear(in_features = INPUTS, out_features = FC1)
         self.fc2 = nn.Linear(in_features = FC1, out_features = FC2)
-        self.out = nn.Linear(in_features = FC2, out_features = OUTPUTS)
+        self.fc3 = nn.Linear(in_features = FC2, out_features = FC3)
+        self.out = nn.Linear(in_features = FC3, out_features = OUTPUTS)
 
     def forward(self, t):
         t = F.relu(self.fc1(t))
         t = F.relu(self.fc2(t))
+        t = F.relu(self.fc3(t))
         t = self.out(t)
         return t
 
@@ -275,23 +277,28 @@ class SumoManager():
             self.action = str(joint_action[tl].item())
             self.set_tl_state(tl)
             tl_record[tl] = self.action
-        self.get_state(elapsed_state = True) 
         self.action_record.append((self._step, tl_record))
+        self.get_state(elapsed_state = True) 
         for tl in joint_action:
             reward = self.compute_reward(tl)
             joint_reward[tl] = torch.tensor([reward], device = self.device)
         return joint_reward
 
     def compute_reward(self, tl):
-        n = int(tl[-1])
-        p = self.state[(n - 1)*self.tms:n*self.tms]
+        reward = 0
+        for Tl in self.TLIds:
+            n = int(Tl[-1])
+            p = self.state[(n - 1)*self.tms:n*self.tms]
+            if Tl == tl:
+                r = -0.3333*(abs(sum(p)))
+                reward += r
+            else:
+                r = -0.3333*(abs(sum(p)))
+                reward += r
+        return reward
         # wt = self.state[self.tms:]
         # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
-        if self._step < TRIGGER_WAITING_STEP:
-            return -1*(abs(sum(p)))
-        else:
-            return -1*(abs(sum(p))) - (TRIGGER_WAITING_STEP/10)
-        
+
     def parse_state_info(self):
         state_info = SumoTrafficState.get()
         pNwt_cat = []
@@ -372,7 +379,9 @@ if __name__ == "__main__":
     episodic_losses = []
     max_return = float("-Inf")
     min_loss = float("Inf")
+    all_time_low = False
     pm.print_time()
+
     for episode in range(NUM_EPISODES):
         print("EPISODE: ", episode)
         sm.reset()
@@ -406,7 +415,8 @@ if __name__ == "__main__":
                         max_return = return_val
                     if agent_step < min_loss:
                         pm.write_record(GRAPH_NAME + "_min_loss", sm.action_record)
-                        min_return = agent_step
+                        min_loss = agent_step
+                        all_time_low = True
                     print(f"RETURN for EPISODE {episode}:", return_val)
                     print(f"LOSS for EPISODE {episode}:", agent_step)
                     episode_returns.append(return_val)
@@ -414,13 +424,16 @@ if __name__ == "__main__":
                     if GRAPH_SHOW:
                         pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
                     break 
-        if episode % TARGET_UPDATE == 0:
+        if episode % TARGET_UPDATE == 0 or (episode > GREEDY_TARGET_UPDATE and all_time_low):
             for tl in sm.TLIds:
+
                 target_net = target_nets[tl]
                 policy_net = policy_nets[tl]
                 target_net.load_state_dict(policy_net.state_dict())
     pm.print_time()
     if not GRAPH_SHOW:
         pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+    pm.write_record(GRAPH_NAME + "_returns", str(episode_returns))
+    pm.write_record(GRAPH_NAME + "_losses", str(episodic_losses))
     pm.save(GRAPH_NAME)
     sm.close()

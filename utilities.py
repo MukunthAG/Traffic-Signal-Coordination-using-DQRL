@@ -17,6 +17,15 @@ import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
 
+#GOALS
+
+# Try Sequential Sampling
+# Add 3rd layer
+# Immediate Target update, when local minima is hit! --> DONE
+# Try Changing the reward weights --> DONE (0.6 & 0.2)
+# Write Data to file --> DONE
+# Implement yellow light
+
 #PROCESSING
 
 GPU = torch.device("cuda")
@@ -24,18 +33,20 @@ GPU = torch.device("cuda")
 #DQN_ARCHITECTURE      
 
 INPUTS = 36
-FC1 = 18
-FC2 = 18
+FC1 = 16
+FC2 = 16
+FC3 = 16
 OUTPUTS = 8
-GAMMA = 0.95
-ALPHA = 0.01
-TARGET_UPDATE = 8
+GAMMA = 0.99
+ALPHA = 0.001
+TARGET_UPDATE = 10
+GREEDY_TARGET_UPDATE = 50
 
 #MEMORY_MANAGER
 
-NUM_EPISODES = 150
-CAPACITY = 2000
-BATCH_SIZE = 350
+NUM_EPISODES = 180
+CAPACITY = 10000
+BATCH_SIZE = 400
 
 #REWARD_PARAMS
 
@@ -48,11 +59,11 @@ EPS_I = 1
 EPS_E = 0.001
 EPS_DECAY = 0.001
 ACTION_DELAY = 10 
-TRIGGER_WAITING_STEP = 100
+TRIGGER_WAITING_STEP = 200
 
 #PERFOMANCE_METER
 
-GRAPH_NAME = "imawss_trigger_dur_loss"
+GRAPH_NAME = "imawss_avg_p"
 GRAPH_SHOW = False
 MAV_COUNT = 25
 STARTING_RETURN = -500
