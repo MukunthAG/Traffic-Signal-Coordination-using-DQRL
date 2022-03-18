@@ -16,6 +16,7 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
+from itertools import product
 
 #PROCESSING
 
@@ -51,8 +52,9 @@ ACTION_DELAY = 10
 
 #PERFOMANCE_METER
 
-GRAPH_NAME = "single_parameter_sharing"
+GRAPH_NAME = "centralised1"
 GRAPH_SHOW = False
+MAV_PERIOD = 25
 
 #SUMOMANAGEMENT
 

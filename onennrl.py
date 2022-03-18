@@ -1,12 +1,12 @@
 from utilities import *
 
 class DQN(nn.Module):
-    def __init__(self):
+    def __init__(self, outputs = OUTPUTS):
         super().__init__()
 
         self.fc1 = nn.Linear(in_features = INPUTS, out_features = FC1)
         self.fc2 = nn.Linear(in_features = FC1, out_features = FC2)
-        self.out = nn.Linear(in_features = FC2, out_features = OUTPUTS)
+        self.out = nn.Linear(in_features = FC2, out_features = outputs)
 
     def forward(self, t):
         t = F.relu(self.fc1(t))
@@ -86,7 +86,17 @@ class Agent():
                     argmaxp = p
             # print(argmaxp)
             return torch.tensor([int(PHASE_INFO[argmaxp])], device= self.device)
-    
+
+    def select_central_action(self, state, policy_net, num_actions):
+        self.epsilon = self.strategy.get_epsilon(self.experience_step)
+        self.experience_step += 1
+        if self.epsilon > random.random():
+            rand_action = random.randrange(num_actions)
+            return torch.tensor([rand_action], device= self.device)
+        else:
+            with torch.no_grad():
+                return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device)
+                
     def greedy_get_pressure_for_phase(self, phase, Tl):
         phase_list = list(phase.strip(" "))
         slane_list = tr.trafficlight.getControlledLanes(Tl)
@@ -173,10 +183,10 @@ class SumoTrafficState():
     
     @classmethod
     def get(self):
-        states = {}
+        states = []
         for Tl in tr.trafficlight.getIDList():
             state = self.pack_state_info(self, Tl)
-            states[Tl] = state
+            states.append((Tl, state))
         return states
 
 class SumoManager():
@@ -201,6 +211,12 @@ class SumoManager():
     def start(self):
         tr.start(self.sumocmd, label="master")
         self.state = self.parse_state_info()
+        self.Tlids = tr.trafficlight.getIDList()
+        self.tls_num = len(self.Tlids)
+        self.joint_actions = product(
+            list(ACTION_PHASES.keys()), 
+            repeat = self.tls_num)
+        self.num_actions = len(self.joint_actions)
 
     def close(self):
         tr.close()
@@ -231,28 +247,33 @@ class SumoManager():
                 if self.done: break
             return self.state
     
-    def set_tl_state(self):
-        tr.trafficlight.setRedYellowGreenState(self.TL, ACTION_PHASES[self.action])
+    def set_tl_state(self, action_index):
+        joint_action = self.joint_actions[action_index]
+        for tl, phase in zip(sm.Tlids, joint_action): 
+            tr.trafficlight.setRedYellowGreenState(tl, ACTION_PHASES[phase])
 
     def take_action_get_reward(self, action):
-        self.action = str(action.item())
-        self.set_tl_state()
+        action_index = int(action.item())
+        self.set_tl_state(action_index)
         self.get_state(elapsed_state = True)
         reward = self.compute_reward()
         return torch.tensor([reward], device = self.device)
 
     def compute_reward(self):
-        n = int(self.TL[-1])
-        p = self.state[(n - 1)*self.tms:n*self.tms]
+        tot_reward = 0
+        for tl in self.Tlids:
+            n = self.Tlids.index(tl)
+            p = self.state[(n)*self.tms:(n + 1)*self.tms]
+            tot_reward += -1*(abs(sum(p)))
         # wt = self.state[self.tms:]
         # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
-        return -1*(torch.abs(torch.sum(p)))
+        return tot_reward
         
     def parse_state_info(self):
         state_info = SumoTrafficState.get()
         pNwt_cat = []
         for tl in state_info:
-            p = state_info[tl]["pressures"]  
+            p = tl[1]["pressures"]  
             # wt = state_info[self.TL]["waiting_times"]  
             for i in p:
                 pNwt_cat.append(i[1])
@@ -276,7 +297,7 @@ class PerfomanceMeter():
         plt.title(f"{str(period)} period Moving Average of Episodic Values")
         plt.ylabel("ER and EML")
         plt.xlabel("Episode")
-        plt.axhline(y = -137.75, color = 'r', linestyle = 'dashed', label="Greedy Return")
+        # plt.axhline(y = -137.75, color = 'r', linestyle = 'dashed', label="Greedy Return")
         plt.plot(returns, "-b", label="Episodic Return (ER)")
         plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
         plt.plot(losses, "-r", label="Episodic Duration (ED)")
@@ -305,8 +326,8 @@ if __name__ == "__main__":
     memory = MemoryManager()
     pm = PerfomanceMeter()
     Exp = memory.Exp()
-    policy_net = DQN().to(GPU)
-    target_net = DQN().to(GPU)
+    policy_net = DQN(outputs = sm.num_actions).to(GPU)
+    target_net = DQN(outputs = sm.num_actions).to(GPU)
     target_net.load_state_dict(policy_net.state_dict())
     target_net.eval()
     optimizer = optim.Adam(params=policy_net.parameters(), lr=ALPHA)
@@ -322,47 +343,34 @@ if __name__ == "__main__":
         return_val = 0
         loss_val = 0
         for agent_step in count():
-            action = agent.select_action(state, policy_net, greedy_biased = False)
+            action = agent.select_central_action(state, policy_net, sm.num_actions)
             reward = sm.take_action_get_reward(action)
-            # print("agent_step: ", agent_step)
-            # print("epsilon: ", agent.exploration_rate)
-            # print("action: ", action.item())
-            # print("reward: ", reward.item())
             return_val += (GAMMA**(agent_step))*(reward.item())
             next_state = sm.get_state()
             memory.push(Exp(state, action, reward, next_state))
             state = next_state
             if memory.is_sampleable():
-                # print("Sampling......")
                 exps = memory.sample()
                 states, actions, rewards, next_states = memory.unzip_exps(exps)
                 cur_qvalues = agent.get_qvalues(policy_net, states, actions)
-                # print("cur", cur_qvalues)
                 next_qvalues = agent.get_maxqs_for_ns(target_net, next_states)
-                # print("nq", next_qvalues)
                 bellman_targets = agent.get_bellman_targets(rewards, next_qvalues)
                 loss = F.smooth_l1_loss(cur_qvalues, bellman_targets)
-                # loss *= -1
-                loss_val += loss.item()
-                # print("loss: ", loss.item())
                 optimizer.zero_grad()
                 loss.backward()
-                # for param in policy_net.parameters():
-                #     param.grad.data.clamp_(-1, 1)
                 optimizer.step()
             if sm.done:
-                mean_loss = loss_val/agent_step
                 print(f"RETURN for EPISODE {episode}:", return_val)
-                print(f"LOSS for EPISODE {episode}:", mean_loss)
+                print(f"LOSS for EPISODE {episode}:", agent_step)
                 episode_returns.append(return_val)
                 episodic_losses.append(agent_step)
                 if GRAPH_SHOW:
-                    pm.plot_returns(episode_returns, episodic_losses, 50)
+                    pm.plot_returns(episode_returns, episodic_losses, MAV_PERIOD)
                 break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
     pm.print_time()
     if not GRAPH_SHOW:
-        pm.plot_returns(episode_returns, episodic_losses, 50)
+        pm.plot_returns(episode_returns, episodic_losses, MAV_PERIOD)
     pm.save(GRAPH_NAME)
     sm.close()
