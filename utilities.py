@@ -18,6 +18,8 @@ from collections import namedtuple
 from itertools import count
 from itertools import product
 
+# TRY some different sampling method
+# TRY for large networks
 #PROCESSING
 
 GPU = torch.device("cuda")
@@ -25,18 +27,18 @@ GPU = torch.device("cuda")
 #DQN_ARCHITECTURE      
 
 INPUTS = 36
-FC1 = 18
-FC2 = 18
-OUTPUTS = 8
-GAMMA = 0.95
-ALPHA = 0.01
-TARGET_UPDATE = 8
+FC1 = 624
+FC2 = 624
+OUTPUTS = 512
+GAMMA = 0.99
+ALPHA = 0.001
+TARGET_UPDATE = 10
 
 #MEMORY_MANAGER
 
-NUM_EPISODES = 150
-CAPACITY = 1200
-BATCH_SIZE = 200
+NUM_EPISODES = 500
+CAPACITY = 10000
+BATCH_SIZE = 500
 
 #REWARD_PARAMS
 
@@ -47,14 +49,14 @@ MAXWT = 200
 
 EPS_I = 1
 EPS_E = 0.001
-EPS_DECAY = 0.01
-ACTION_DELAY = 10 
+EPS_DECAY = 0.0001
+ACTION_DELAY = 10
 
 #PERFOMANCE_METER
 
-GRAPH_NAME = "centralised1"
+GRAPH_NAME = "centralised4"
 GRAPH_SHOW = False
-MAV_COUNT = 25
+MAV_COUNT = 50
 
 #SUMOMANAGEMENT
 

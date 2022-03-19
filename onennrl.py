@@ -191,7 +191,6 @@ class SumoTrafficState():
 
 class SumoManager():
     def __init__(self, sumocmd = SUMOCMD, active_signal = CONTROLLED_SIGNAL, tms = NUM_TMS, maxp = MAXP, maxwt = MAXWT, device = GPU):
-        self.setup()
         self.device = device
         self.sumocmd = sumocmd
         self.state = None
@@ -200,6 +199,7 @@ class SumoManager():
         self.tms = tms
         self.maxp = maxp
         self.maxwt = maxwt
+        self.setup()
 
     def setup(self):
         if 'SUMO_HOME' in os.environ:
@@ -207,15 +207,17 @@ class SumoManager():
             sys.path.append(tools)
         else:
             sys.exit("please declare environment variable 'SUMO_HOME'")
+        self.start()
+        self.close()
 
     def start(self):
         tr.start(self.sumocmd, label="master")
         self.state = self.parse_state_info()
         self.Tlids = tr.trafficlight.getIDList()
         self.tls_num = len(self.Tlids)
-        self.joint_actions = product(
+        self.joint_actions = list(product(
             list(ACTION_PHASES.keys()), 
-            repeat = self.tls_num)
+            repeat = self.tls_num))
         self.num_actions = len(self.joint_actions)
 
     def close(self):
@@ -289,27 +291,44 @@ class PerfomanceMeter():
         t = time.localtime()
         print(time.strftime("%H:%M:%S", t))
 
-    def plot_returns(self, returns, losses, period):
+    def plot_returns(self, returns, durs, avg_reward, bell_loss, period):
+        self.period = period
         if not self.open:
-            plt.figure(1)
             self.open = True
         plt.clf()
         plt.title(f"{str(period)} period Moving Average of Episodic Values")
-        plt.ylabel("ER and EML")
-        plt.xlabel("Episode")
-        # plt.axhline(y = -137.75, color = 'r', linestyle = 'dashed', label="Greedy Return")
-        plt.plot(returns, "-b", label="Episodic Return (ER)")
-        plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
-        plt.plot(losses, "-r", label="Episodic Duration (ED)")
-        plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of ED")
-        plt.legend(loc="lower right")
+        fig, self.axes = plt.subplots(2, 2)
+        mav1 = self.get_moving_avgs(returns)
+        mav2 = self.get_moving_avgs(durs)
+        mav3 = self.get_moving_avgs(avg_reward)
+        mav4 = self.get_moving_avgs(bell_loss)
+        self.axes[0, 0].plot(returns) 
+        self.axes[0, 0].plot(mav1) 
+        self.axes[0, 0].set_title("Return")
+        self.axes[0, 1].plot(durs)
+        self.axes[0, 1].plot(mav2) 
+        self.axes[0, 1].set_title("Duration")
+        self.axes[1, 0].plot(avg_reward)
+        self.axes[1, 0].plot(mav3)
+        self.axes[1, 0].set_title("Avg Reward")
+        self.axes[1, 1].plot(bell_loss)
+        self.axes[1, 1].plot(mav4)
+        self.axes[1, 1].set_title("Avg Bellman Loss")
+        plt.tight_layout()
+        # plt.ylabel("ER and EML")
+        # plt.xlabel("Episode")
+        # plt.plot(returns, "-b", label="Episodic Return (ER)")
+        # plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
+        # plt.plot(losses, "-r", label="Episode Duration (ED)")
+        # plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of ED")
+        # plt.legend(loc="lower right")
         plt.pause(0.001)
     
-    def get_moving_avgs(self, values, period):
+    def get_moving_avgs(self, values):
         values = torch.tensor(values).float()
-        if len(values) >= period:
-            mov_avgs = values.unfold(0, period, 1).mean(1)
-            mov_avgs = torch.cat((torch.zeros(period - 1), mov_avgs))
+        if len(values) >= self.period:
+            mov_avgs = values.unfold(0, self.period, 1).mean(1)
+            mov_avgs = torch.cat((torch.zeros(self.period - 1), mov_avgs))
             return mov_avgs.detach().numpy()
         else:
             mov_avgs = torch.zeros(len(values))
@@ -317,6 +336,12 @@ class PerfomanceMeter():
     
     def save(self, msg):
         plt.savefig(msg + ".png")
+    
+    def write_record(self, name, list):
+        list = str(list)
+        file = open(name + ".txt", "w")
+        file.write(list)
+        file.close()
 
 if __name__ == "__main__":
 
@@ -334,6 +359,8 @@ if __name__ == "__main__":
 
     episode_returns = []
     episodic_losses = []
+    avg_rewards = []
+    avg_bellman_losses = []
     max_return = float("-Inf")
     min_loss = float("Inf")
     pm.print_time()
@@ -343,10 +370,12 @@ if __name__ == "__main__":
         sm.reset()
         state = sm.get_state()
         return_val = 0
+        tot_reward = 0
         loss_val = 0
         for agent_step in count():
             action = agent.select_central_action(state, policy_net, sm.num_actions)
             reward = sm.take_action_get_reward(action)
+            tot_reward += reward.item()
             return_val += (GAMMA**(agent_step))*(reward.item())
             next_state = sm.get_state()
             memory.push(Exp(state, action, reward, next_state))
@@ -358,28 +387,27 @@ if __name__ == "__main__":
                 next_qvalues = agent.get_maxqs_for_ns(target_net, next_states)
                 bellman_targets = agent.get_bellman_targets(rewards, next_qvalues)
                 loss = F.smooth_l1_loss(cur_qvalues, bellman_targets)
+                loss_val += loss.item()
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
             if sm.done:
-                # if return_val > max_return:
-                #     pm.write_record(GRAPH_NAME + "_max_return", sm.action_record)
-                #     max_return = return_val
-                # if agent_step < min_loss:
-                #     pm.write_record(GRAPH_NAME + "_min_loss", sm.action_record)
-                #     min_loss = agent_step
+                    avg_reward = tot_reward/agent_step
+                    avg_loss = loss_val/agent_step
                     print(f"RETURN for EPISODE {episode}:", return_val)
                     print(f"LOSS for EPISODE {episode}:", agent_step)
                     episode_returns.append(return_val)
                     episodic_losses.append(agent_step)
+                    avg_rewards.append(avg_reward)
+                    avg_bellman_losses.append(avg_loss)
                     if GRAPH_SHOW:
-                        pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+                        pm.plot_returns(episode_returns, episodic_losses, avg_rewards, avg_bellman_losses, MAV_COUNT)             
                     break 
         if episode % TARGET_UPDATE == 0:
             target_net.load_state_dict(policy_net.state_dict())
     pm.print_time()
     if not GRAPH_SHOW:
-        pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+        pm.plot_returns(episode_returns, episodic_losses, avg_rewards, avg_bellman_losses, MAV_COUNT)
     pm.write_record(GRAPH_NAME + "_returns", str(episode_returns))
     pm.write_record(GRAPH_NAME + "_losses", str(episodic_losses))
     pm.save(GRAPH_NAME)
