@@ -25,6 +25,7 @@ from itertools import count
 # Try Changing the reward weights --> DONE (0.6 & 0.2)
 # Write Data to file --> DONE
 # Implement yellow light
+# AM I MISSING SOMETHING WITH THE RElN B/W EPISODE DURATOIN AND RETURNS
 
 #PROCESSING
 
@@ -35,8 +36,9 @@ GPU = torch.device("cuda")
 INPUTS = 36
 FC1 = 16
 FC2 = 16
-FC3 = 16
+FC3 = 8
 OUTPUTS = 8
+# goal : return less than -62 and loss less than 33
 GAMMA = 0.99
 ALPHA = 0.001
 TARGET_UPDATE = 10
@@ -45,6 +47,7 @@ GREEDY_TARGET_UPDATE = 50
 #MEMORY_MANAGER
 
 NUM_EPISODES = 180
+MAX_EPISODES = 500
 CAPACITY = 10000
 BATCH_SIZE = 400
 
@@ -58,12 +61,12 @@ MAXWT = 200
 EPS_I = 1
 EPS_E = 0.001
 EPS_DECAY = 0.001
-ACTION_DELAY = 10 
+ACTION_DELAY = 10
 TRIGGER_WAITING_STEP = 200
 
 #PERFOMANCE_METER
 
-GRAPH_NAME = "imawss_avg_p"
+GRAPH_NAME = "imawss_heavy"
 GRAPH_SHOW = False
 MAV_COUNT = 25
 STARTING_RETURN = -500
@@ -71,10 +74,10 @@ STARTING_DUR = 100
 
 #SUMOMANAGEMENT
 
-GUI_ACTIVE = False
+GUI_ACTIVE = True
 TIME_ELAPSE = 0.005
 SUMOCMD = ["sumo-gui" if GUI_ACTIVE else "sumo",
-            "-c", "fixedtime.sumocfg",
+            "-c", "sumo\\fixedtime.sumocfg",
             "--no-step-log", "true",
             "-W", "true", 
             "--duration-log.disable"]

@@ -1,5 +1,0 @@
-optimum return for maxpres control = -137.75
-duration for maxpres control = 322.2 = 32.2
-
-potential problem with single_parameter_sharing may be that samples are chosen randomly
-Indeed, the agent may focus on experiences where the TD error is large.

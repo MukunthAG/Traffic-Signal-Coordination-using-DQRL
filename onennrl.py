@@ -1,3 +1,4 @@
+from tkinter.tix import Tree
 from utilities import *
 
 class DQN(nn.Module):
@@ -76,7 +77,7 @@ class Agent():
         self.device = device
         self.epsilon = None
     
-    def select_action(self, state, policy_net, greedy_biased = False):
+    def select_action(self, state, policy_net, tl = CONTROLLED_SIGNAL, greedy_biased = False):
         if not greedy_biased:
             self.epsilon = self.strategy.get_epsilon(self.experience_step)
             self.experience_step += 1
@@ -90,7 +91,7 @@ class Agent():
             maxpressure = float("-Inf")
             argmaxp = None
             for p in PHASE_INFO:
-                pressure = self.greedy_get_pressure_for_phase(p, CONTROLLED_SIGNAL)
+                pressure = self.greedy_get_pressure_for_phase(p, tl)
                 if pressure > maxpressure:
                     maxpressure = pressure
                     argmaxp = p
@@ -101,7 +102,7 @@ class Agent():
         joint_action = {}
         for tl in policy_nets:
             policy_net = policy_nets[tl]
-            action = self.select_action(state, policy_net)
+            action = self.select_action(state, policy_net, tl = tl, greedy_biased=True)
             joint_action[tl] = action
         return joint_action
         
@@ -250,6 +251,9 @@ class SumoManager():
         else:
             self.state = torch.zeros_like(self.state, device = self.device).float()
 
+    def set_done(self):
+        self.done = True
+
     def get_state(self, elapsed_state = False):
         if not elapsed_state:
             return self.state
@@ -346,11 +350,11 @@ class PerfomanceMeter():
             return mov_avgs.detach().numpy()
     
     def save(self, msg):
-        plt.savefig(msg + ".png")
+        plt.savefig("data\\" + msg + ".png")
 
     def write_record(self, name, list):
         list = str(list)
-        file = open(name + ".txt", "w")
+        file = open("logs\\" + name + ".txt", "w")
         file.write(list)
         file.close()
 
@@ -390,6 +394,11 @@ if __name__ == "__main__":
         for agent_step in count():
             joint_action = agent.select_joint_action(state, policy_nets)
             joint_reward = sm.take_joint_action_get_reward(joint_action)
+            if agent_step > MAX_EPISODES:
+                sm.set_done()
+                # reward = -100000000
+                # for tl in sm.TLIds:
+                #     joint_reward[tl] = torch.tensor([reward], device = GPU)
             reward = sum(joint_reward.values()).item()/len(sm.TLIds)
             return_val += (GAMMA**(agent_step))*reward
             next_state = sm.get_state()
