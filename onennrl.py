@@ -315,13 +315,6 @@ class PerfomanceMeter():
         self.axes[1, 1].plot(mav4)
         self.axes[1, 1].set_title("Avg Bellman Loss")
         plt.tight_layout()
-        # plt.ylabel("ER and EML")
-        # plt.xlabel("Episode")
-        # plt.plot(returns, "-b", label="Episodic Return (ER)")
-        # plt.plot(self.get_moving_avgs(returns, period), "-g", label="MAV of ER")
-        # plt.plot(losses, "-r", label="Episode Duration (ED)")
-        # plt.plot(self.get_moving_avgs(losses, period), "-y", label="MAV of ED")
-        # plt.legend(loc="lower right")
         plt.pause(0.001)
     
     def get_moving_avgs(self, values):
