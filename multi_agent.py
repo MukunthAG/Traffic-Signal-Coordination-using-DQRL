@@ -1,5 +1,5 @@
 from tkinter.tix import Tree
-from utilities import *
+from multi_agent_utilities import *
 
 class DQN(nn.Module):
     def __init__(self):
@@ -323,30 +323,40 @@ class PerfomanceMeter():
         t = time.localtime()
         print(time.strftime("%H:%M:%S", t))
 
-    def plot_returns(self, returns, losses, period):
+    def plot_returns(self, returns, durs, avg_reward, bell_loss, period):
+        self.period = period
         if not self.open:
-            plt.figure(1)
             self.open = True
         plt.clf()
         plt.title(f"{str(period)} period Moving Average of Episodic Values")
-        plt.ylabel("ER and EML")
-        plt.xlabel("Episode")
-        plt.axhline(y = -137.75, color = 'r', linestyle = 'dashed', label="Greedy Return")
-        plt.plot(returns, "-b", label="ER")
-        plt.plot(self.get_moving_avgs(returns, period, STARTING_RETURN), "-y", label="MAV (ER)")
-        plt.plot(losses, "-r", label="ED")
-        plt.plot(self.get_moving_avgs(losses, period, STARTING_DUR), "-g", label="MAV (ED)")
-        plt.legend(loc="lower right")
+        fig, self.axes = plt.subplots(2, 2)
+        mav1 = self.get_moving_avgs(returns)
+        mav2 = self.get_moving_avgs(durs)
+        mav3 = self.get_moving_avgs(avg_reward)
+        mav4 = self.get_moving_avgs(bell_loss)
+        self.axes[0, 0].plot(returns) 
+        self.axes[0, 0].plot(mav1) 
+        self.axes[0, 0].set_title("Return")
+        self.axes[0, 1].plot(durs)
+        self.axes[0, 1].plot(mav2) 
+        self.axes[0, 1].set_title("Duration")
+        self.axes[1, 0].plot(avg_reward)
+        self.axes[1, 0].plot(mav3)
+        self.axes[1, 0].set_title("Avg Reward")
+        self.axes[1, 1].plot(bell_loss)
+        self.axes[1, 1].plot(mav4)
+        self.axes[1, 1].set_title("Avg Bellman Loss")
+        plt.tight_layout()
         plt.pause(0.001)
     
-    def get_moving_avgs(self, values, period, zero_crc):
+    def get_moving_avgs(self, values):
         values = torch.tensor(values).float()
-        if len(values) >= period:
-            mov_avgs = values.unfold(0, period, 1).mean(1)
-            mov_avgs = torch.cat((torch.zeros(period - 1) + zero_crc, mov_avgs))
+        if len(values) >= self.period:
+            mov_avgs = values.unfold(0, self.period, 1).mean(1)
+            mov_avgs = torch.cat((torch.zeros(self.period - 1), mov_avgs))
             return mov_avgs.detach().numpy()
         else:
-            mov_avgs = torch.zeros(len(values)) + zero_crc
+            mov_avgs = torch.zeros(len(values))
             return mov_avgs.detach().numpy()
     
     def save(self, msg):
@@ -381,6 +391,8 @@ if __name__ == "__main__":
 
     episode_returns = []
     episodic_losses = []
+    avg_rewards = []
+    avg_bellman_losses = []
     max_return = float("-Inf")
     min_loss = float("Inf")
     all_time_low = False
@@ -391,15 +403,15 @@ if __name__ == "__main__":
         sm.reset()
         state = sm.get_state()
         return_val = 0
+        tot_reward = 0
+        loss_val = 0
         for agent_step in count():
             joint_action = agent.select_joint_action(state, policy_nets)
             joint_reward = sm.take_joint_action_get_reward(joint_action)
             if agent_step > MAX_EPISODES:
                 sm.set_done()
-                # reward = -100000000
-                # for tl in sm.TLIds:
-                #     joint_reward[tl] = torch.tensor([reward], device = GPU)
             reward = sum(joint_reward.values()).item()/len(sm.TLIds)
+            tot_reward += reward.item()
             return_val += (GAMMA**(agent_step))*reward
             next_state = sm.get_state()
             memory.push(Exp(state, joint_action, joint_reward, next_state))
@@ -415,6 +427,7 @@ if __name__ == "__main__":
                     next_qvalues = agent.get_maxqs_for_ns(target_net, next_states)
                     bellman_targets = agent.get_bellman_targets(rewards, next_qvalues)
                     loss = F.smooth_l1_loss(cur_qvalues, bellman_targets)
+                    loss_val += loss.item()
                     optimizer.zero_grad()
                     loss.backward()
                     optimizer.step()
@@ -426,12 +439,16 @@ if __name__ == "__main__":
                         pm.write_record(GRAPH_NAME + "_min_loss", sm.action_record)
                         min_loss = agent_step
                         all_time_low = True
+                    avg_reward = tot_reward/agent_step
+                    avg_loss = loss_val/agent_step
                     print(f"RETURN for EPISODE {episode}:", return_val)
                     print(f"LOSS for EPISODE {episode}:", agent_step)
                     episode_returns.append(return_val)
                     episodic_losses.append(agent_step)
+                    avg_rewards.append(avg_reward)
+                    avg_bellman_losses.append(avg_loss)
                     if GRAPH_SHOW:
-                        pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+                        pm.plot_returns(episode_returns, episodic_losses, avg_rewards, avg_bellman_losses, MAV_COUNT)             
                     break 
         if episode % TARGET_UPDATE == 0 or (episode > GREEDY_TARGET_UPDATE and all_time_low):
             for tl in sm.TLIds:
