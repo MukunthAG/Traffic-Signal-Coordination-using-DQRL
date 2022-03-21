@@ -220,7 +220,7 @@ class SumoManager():
             sys.exit("please declare environment variable 'SUMO_HOME'")
         tr.start(self.sumocmd, label="master")
         self.TLIds = tr.trafficlight.getIDList()
-        self.tl_count = len(sm.TLIds)
+        self.tl_count = len(self.TLIds)
         tr.close()
 
     def start(self):
@@ -423,7 +423,7 @@ if __name__ == "__main__":
             if agent_step > MAX_EPISODES:
                 sm.set_done()
             if MAX_PRES == True:
-                central_return += sm.compute_central_reward()
+                central_return += (GAMMA**(agent_step))*sm.compute_central_reward()
             reward = sum(joint_reward.values()).item()/sm.tl_count
             tot_reward += reward
             return_val += (GAMMA**(agent_step))*reward

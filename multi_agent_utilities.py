@@ -76,7 +76,7 @@ STARTING_DUR = 100
 
 #SUMOMANAGEMENT
 
-GUI_ACTIVE = True
+GUI_ACTIVE = False
 TIME_ELAPSE = 0.005
 SUMOCMD = ["sumo-gui" if GUI_ACTIVE else "sumo",
             "-c", "sumo\\fixedtime.sumocfg",
