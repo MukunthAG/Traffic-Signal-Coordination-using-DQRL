@@ -19,7 +19,7 @@ from itertools import count
 from itertools import product
 
 # TRY some different sampling method
-# TRY for large networks
+# TRY for large networks --> DOING
 #PROCESSING
 
 GPU = torch.device("cuda")
@@ -37,8 +37,9 @@ TARGET_UPDATE = 10
 #MEMORY_MANAGER
 
 NUM_EPISODES = 500
-CAPACITY = 10000
-BATCH_SIZE = 500
+CAPACITY = 5000
+BATCH_SIZE = 200
+MAX_EPISODES = 1200
 
 #REWARD_PARAMS
 
@@ -51,10 +52,11 @@ EPS_I = 1
 EPS_E = 0.001
 EPS_DECAY = 0.0001
 ACTION_DELAY = 10
+MAX_PRES = False
 
 #PERFOMANCE_METER
 
-GRAPH_NAME = "centralised4"
+GRAPH_NAME = "centralised_heavy_traffic"
 GRAPH_SHOW = False
 MAV_COUNT = 50
 

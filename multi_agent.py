@@ -102,7 +102,7 @@ class Agent():
         joint_action = {}
         for tl in policy_nets:
             policy_net = policy_nets[tl]
-            action = self.select_action(state, policy_net, tl = tl, greedy_biased=True)
+            action = self.select_action(state, policy_net, tl = tl, greedy_biased=MAX_PRES)
             joint_action[tl] = action
         return joint_action
         
@@ -220,6 +220,7 @@ class SumoManager():
             sys.exit("please declare environment variable 'SUMO_HOME'")
         tr.start(self.sumocmd, label="master")
         self.TLIds = tr.trafficlight.getIDList()
+        self.tl_count = len(sm.TLIds)
         tr.close()
 
     def start(self):
@@ -294,14 +295,24 @@ class SumoManager():
             n = int(Tl[-1])
             p = self.state[(n - 1)*self.tms:n*self.tms]
             if Tl == tl:
-                r = -0.3333*(abs(sum(p)))
+                r = -OWN_WEIGHT*(abs(sum(p)))
                 reward += r
             else:
-                r = -0.3333*(abs(sum(p)))
+                r = -OTHER_WEIGHT*(abs(sum(p)))
                 reward += r
         return reward
         # wt = self.state[self.tms:]
         # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
+
+    def compute_central_reward(self):
+        tot_reward = 0
+        for tl in self.TLIds:
+            n = self.TLIds.index(tl)
+            p = self.state[(n)*self.tms:(n + 1)*self.tms]
+            tot_reward += -1*(abs(sum(p)))
+        # wt = self.state[self.tms:]
+        # wt = self.maxp*torch.tanh((wt/(self.maxwt/2) - 1))
+        return tot_reward
 
     def parse_state_info(self):
         state_info = SumoTrafficState.get()
@@ -403,6 +414,7 @@ if __name__ == "__main__":
         sm.reset()
         state = sm.get_state()
         return_val = 0
+        central_return = 0
         tot_reward = 0
         loss_val = 0
         for agent_step in count():
@@ -410,8 +422,10 @@ if __name__ == "__main__":
             joint_reward = sm.take_joint_action_get_reward(joint_action)
             if agent_step > MAX_EPISODES:
                 sm.set_done()
-            reward = sum(joint_reward.values()).item()/len(sm.TLIds)
-            tot_reward += reward.item()
+            if MAX_PRES == True:
+                central_return += sm.compute_central_reward()
+            reward = sum(joint_reward.values()).item()/sm.tl_count
+            tot_reward += reward
             return_val += (GAMMA**(agent_step))*reward
             next_state = sm.get_state()
             memory.push(Exp(state, joint_action, joint_reward, next_state))
@@ -443,6 +457,8 @@ if __name__ == "__main__":
                     avg_loss = loss_val/agent_step
                     print(f"RETURN for EPISODE {episode}:", return_val)
                     print(f"LOSS for EPISODE {episode}:", agent_step)
+                    if MAX_PRES:
+                        print("Central Return: ", central_return)
                     episode_returns.append(return_val)
                     episodic_losses.append(agent_step)
                     avg_rewards.append(avg_reward)

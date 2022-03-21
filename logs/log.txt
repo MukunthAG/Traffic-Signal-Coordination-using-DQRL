@@ -8,3 +8,9 @@ python "C:\Program Files (x86)\Eclipse\Sumo\tools\randomTrips.py" -b 0 -e 3600 -
 
 RETURN for EPISODE 1: -4242.2081393362905
 LOSS for EPISODE 1: 501 --> ACTION_DELAY = 10
+
+RETURN for EPISODE 0: -4334.460543595222 --> Multiagent return
+LOSS for EPISODE 0: 501
+Central Return:  tensor(-64747., device='cuda:0') 
+
+Find the return of max_pres and work on it

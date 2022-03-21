@@ -66,7 +66,7 @@ class Agent():
         self.device = device
         self.epsilon = None
     
-    def select_action(self, state, policy_net, greedy_biased = False):
+    def select_action(self, state, policy_net, tl = CONTROLLED_SIGNAL, greedy_biased = False):
         if not greedy_biased:
             self.epsilon = self.strategy.get_epsilon(self.experience_step)
             self.experience_step += 1
@@ -80,7 +80,7 @@ class Agent():
             maxpressure = float("-Inf")
             argmaxp = None
             for p in PHASE_INFO:
-                pressure = self.greedy_get_pressure_for_phase(p, CONTROLLED_SIGNAL)
+                pressure = self.greedy_get_pressure_for_phase(p, tl)
                 if pressure > maxpressure:
                     maxpressure = pressure
                     argmaxp = p
@@ -215,8 +215,8 @@ class SumoManager():
     def start(self):
         tr.start(self.sumocmd, label="master")
         self.state = self.parse_state_info()
-        self.Tlids = tr.trafficlight.getIDList()
-        self.tls_num = len(self.Tlids)
+        self.TLIds = tr.trafficlight.getIDList()
+        self.tls_num = len(self.TLIds)
         self.joint_actions = list(product(
             list(ACTION_PHASES.keys()), 
             repeat = self.tls_num))
@@ -259,7 +259,7 @@ class SumoManager():
     def set_tl_state(self, action_index):
         joint_action = self.joint_actions[action_index]
         self.tl_record = {}
-        for tl, phase in zip(sm.Tlids, joint_action): 
+        for tl, phase in zip(sm.TLIds, joint_action): 
             tr.trafficlight.setRedYellowGreenState(tl, ACTION_PHASES[phase])
             self.tl_record[tl] = phase
 
@@ -273,8 +273,8 @@ class SumoManager():
 
     def compute_reward(self):
         tot_reward = 0
-        for tl in self.Tlids:
-            n = self.Tlids.index(tl)
+        for tl in self.TLIds:
+            n = self.TLIds.index(tl)
             p = self.state[(n)*self.tms:(n + 1)*self.tms]
             tot_reward += -1*(abs(sum(p)))
         # wt = self.state[self.tms:]
@@ -378,6 +378,8 @@ if __name__ == "__main__":
         for agent_step in count():
             action = agent.select_central_action(state, policy_net, sm.num_actions)
             reward = sm.take_action_get_reward(action)
+            if agent_step >= MAX_EPISODES:
+                sm.set_done()
             tot_reward += reward.item()
             return_val += (GAMMA**(agent_step))*(reward.item())
             next_state = sm.get_state()
