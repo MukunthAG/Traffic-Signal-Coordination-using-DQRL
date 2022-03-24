@@ -1,4 +1,3 @@
-from tkinter.tix import Tree
 from multi_agent_utilities import *
 
 class DQN(nn.Module):
@@ -87,7 +86,7 @@ class Agent():
             else:
                 with torch.no_grad():
                     return policy_net(state).unsqueeze(dim=0).argmax(dim=1).to(self.device)
-        else:
+        else: # NEED TO DEBUG SEVERLY
             maxpressure = float("-Inf")
             argmaxp = None
             for p in PHASE_INFO:
@@ -102,7 +101,7 @@ class Agent():
         joint_action = {}
         for tl in policy_nets:
             policy_net = policy_nets[tl]
-            action = self.select_action(state, policy_net, tl = tl, greedy_biased=MAX_PRES)
+            action = self.select_action(state, policy_net, tl = tl, greedy_biased = MAX_PRES)
             joint_action[tl] = action
         return joint_action
         
@@ -468,13 +467,12 @@ if __name__ == "__main__":
                     break 
         if episode % TARGET_UPDATE == 0 or (episode > GREEDY_TARGET_UPDATE and all_time_low):
             for tl in sm.TLIds:
-
                 target_net = target_nets[tl]
                 policy_net = policy_nets[tl]
                 target_net.load_state_dict(policy_net.state_dict())
     pm.print_time()
     if not GRAPH_SHOW:
-        pm.plot_returns(episode_returns, episodic_losses, MAV_COUNT)
+        pm.plot_returns(episode_returns, episodic_losses, avg_rewards, avg_bellman_losses, MAV_COUNT)
     pm.write_record(GRAPH_NAME + "_returns", str(episode_returns))
     pm.write_record(GRAPH_NAME + "_losses", str(episodic_losses))
     pm.save(GRAPH_NAME)
