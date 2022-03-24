@@ -1,4 +1,4 @@
-Command to generate traffic - python "C:\Program Files (x86)\Eclipse\Sumo\tools\randomTrips.py" -b 0 -e 3600 -p 2 --route-file roo.rou.xml --binomial 5 -n fixedtime.net.xml
+Command to generate traffic - python "C:\Program Files (x86)\Eclipse\Sumo\tools\randomTrips.py" -b 0 -e 900 -p 2 --route-file roo.rou.xml --binomial 5 -n fixedtime.net.xml
 
 CONCLUSION - 
 
