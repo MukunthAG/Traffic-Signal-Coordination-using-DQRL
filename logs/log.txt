@@ -1,8 +1,8 @@
-Command to generate traffic - python "C:\Program Files (x86)\Eclipse\Sumo\tools\randomTrips.py" -b 0 -e 3600 -p 2 --route-file roo.rou.xml --binomial 5 -n fixedtime.net.xml
+Command to generate traffic - python "C:\Program Files (x86)\Eclipse\Sumo\tools\randomTrips.py" -b 0 -e 600 -p 1 --route-file roo.rou.xml --binomial 5 -n sumo\\fixedtime.net.xml
 
 CONCLUSION - 
 
-For 3 signal heavy traffic conditions
+For 3 signal heavy traffic conditions p = 0.3 => 2000 vph
 
 => Fixed Time Control > 5000
 => Actuated > 4000
