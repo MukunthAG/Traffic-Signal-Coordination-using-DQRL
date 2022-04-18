@@ -1,0 +1,11 @@
+Command to generate traffic - python "C:\Program Files (x86)\Eclipse\Sumo\tools\randomTrips.py" -b 0 -e 900 -p 2 --route-file roo.rou.xml --binomial 5 -n fixedtime.net.xml
+
+CONCLUSION - 
+
+For 3 signal heavy traffic conditions
+
+=> Fixed Time Control > 5000
+=> Actuated > 4000
+=> Max_pres > 3500
+=> Centralised < 2170
+=> Multi-agent < 2010

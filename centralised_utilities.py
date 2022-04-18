@@ -16,26 +16,30 @@ import torch.nn.functional as F
 import matplotlib.pyplot as plt
 from collections import namedtuple
 from itertools import count
+from itertools import product
 
+# TRY some different sampling method
+# TRY for large networks --> DOING
 #PROCESSING
 
 GPU = torch.device("cuda")
 
 #DQN_ARCHITECTURE      
 
-INPUTS = 24
-FC1 = 18
-FC2 = 18
-OUTPUTS = 8
+INPUTS = 36
+FC1 = 624
+FC2 = 624
+OUTPUTS = 512
 GAMMA = 0.99
-ALPHA = 0.01
+ALPHA = 0.001
 TARGET_UPDATE = 10
 
 #MEMORY_MANAGER
 
-NUM_EPISODES = 100
-CAPACITY = 10000
-BATCH_SIZE = 50
+NUM_EPISODES = 500
+CAPACITY = 5000
+BATCH_SIZE = 200
+MAX_EPISODES = 1200
 
 #REWARD_PARAMS
 
@@ -45,15 +49,23 @@ MAXWT = 200
 #ACTION_STRATEGY
 
 EPS_I = 1
-EPS_E = 0.01
-EPS_DECAY = 0.0005
-ACTION_DELAY = 10 
+EPS_E = 0.001
+EPS_DECAY = 0.0001
+ACTION_DELAY = 10
+MAX_PRES = False
+
+#PERFOMANCE_METER
+
+GRAPH_NAME = "centralised_heavy_traffic"
+GRAPH_SHOW = False
+MAV_COUNT = 50
 
 #SUMOMANAGEMENT
 
 GUI_ACTIVE = False
+TIME_ELAPSE = 0.005
 SUMOCMD = ["sumo-gui" if GUI_ACTIVE else "sumo",
-            "-c", "fixedtime.sumocfg",
+            "-c", "sumo\\fixedtime.sumocfg",
             "--no-step-log", "true",
             "-W", "true", 
             "--duration-log.disable"]
