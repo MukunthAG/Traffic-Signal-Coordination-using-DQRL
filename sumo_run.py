@@ -5,7 +5,7 @@ class Manager:
     def __init__(self, data):
         self.data = data
         self.sumocmd = ["sumo-gui",
-            "-c", "sumo\\fixedtime.sumocfg",
+            "-c", "sumo\\common_config.sumocfg",
             "--no-step-log", "true",
             "-W", "true", 
             "--duration-log.disable"]
@@ -54,6 +54,9 @@ if __name__ == "__main__":
     sm.start()
     step = 0
     while sm.running():
+        if step == 0:
+            import time
+            time.sleep(50)
         if step % 10 == 0:
             index = int(step/10)
             tl_dict = sm.data[index][1]

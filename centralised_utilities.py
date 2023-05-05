@@ -26,10 +26,10 @@ GPU = torch.device("cuda")
 
 #DQN_ARCHITECTURE      
 
-INPUTS = 36
+INPUTS = 36 # 3 Intersection => 36
 FC1 = 624
 FC2 = 624
-OUTPUTS = 512
+OUTPUTS = 512 # 8 * 8 * 8
 GAMMA = 0.99
 ALPHA = 0.001
 TARGET_UPDATE = 10
@@ -62,7 +62,7 @@ MAV_COUNT = 50
 
 #SUMOMANAGEMENT
 
-GUI_ACTIVE = False
+GUI_ACTIVE = True
 TIME_ELAPSE = 0.005
 SUMOCMD = ["sumo-gui" if GUI_ACTIVE else "sumo",
             "-c", "sumo\\fixedtime.sumocfg",
